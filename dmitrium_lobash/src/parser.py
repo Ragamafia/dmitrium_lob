@@ -7,14 +7,9 @@ from config import cfg
 class MainParser:
 
     def __init__(self):
-        # home_page = self.get_page(cfg.HOME_URL)
-        # brands = self.get_brand_links(home_page)
-        # models = self.get_models(brands)
-        cars = self.get_car_gen()
-        glasses = self.get_glass_type(cars)
-        self.get_glass(glasses)
+        self.data = {}
 
-    def get_page(self, url):
+    async def get_page(self, url):
         response = requests.get(url, headers=cfg.headers)
 
         if response.status_code != 200:
@@ -26,67 +21,83 @@ class MainParser:
         data = container.find_all('a', href=True)
         return data
 
-    def get_brand_links(self, page) -> list:
+    async def get_all_brand_links(self, brands) -> list:
+        #   собирает список ссылок всех брендов с сайта
         links = []
 
-        for brand_link in page:
+        for brand_link in brands:
             link = brand_link['href'].split('/', 2)
             url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/' + link[2]
             links.append(url)
+
         return links
 
-    def get_models(self, brands: list) -> dict:
-        auto = {}
-
-        for i in brands:
-            models = self.get_page(i)
-            for model in models:
-                link = model['href'].split('/', 3)
-                url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/steklo/' + link[3]
-                print(url)
-                auto[link[3]] = url
-
-        return auto
-
-    def get_car_gen(self):
+    async def get_models(self, brand_urls: list) -> list:
+        #   собирает ссылки на все модели бренда, заполняет словарь брендами
         result = []
 
-        #for i in models.values():
-        i = "https://autosteklo.ru/moscow/steklo/toyota/corona"
-        car = requests.get(i, headers=cfg.headers)
-        soup = BeautifulSoup(car.text, "html.parser")
-        container = soup.find("section", class_="gen-list")
-        data = container.find_all('a', href=True)
-        for i in data:
-            link = i['href'].split('/', 3)
-            url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/glass-types/' + link[3]
+        for url in brand_urls:
+            models = await self.get_page(url)
+            for model in models:
+                link = model['href'].split('/', 3)
+                car = link[3].split('/')
+                if car[0] not in self.data:
+                    self.data[car[0]] = {}
+                    self.data[car[0]][car[1]] = {}
+
+                url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/steklo/' + link[3]
+                result.append(url)
+
+        return result
+
+    async def get_gen(self, models: list) -> list:
+        #   получает ссылки на все поколения модели
+        result = []
+
+        for url in models:
+            response = requests.get(url, headers=cfg.headers)
+            soup = BeautifulSoup(response.text, "html.parser")
+            container = soup.find("section", class_="gen-list")
+            data = container.find_all('a', href= True)
+            for i in data:
+                link = i['href'].split('/', 3)
+                url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/glass-types/' + link[3]
+                result.append(url)
+
+        return result
+
+    async def get_glass(self, gen_list: list) -> list:
+        #   получает ссылки на стёкла
+        result = []
+
+        for i in gen_list:
+            response = requests.get(i, headers=cfg.headers)
+            soup = BeautifulSoup(response.text, "html.parser")
+            info_glass = soup.find("section", class_="glass-type")
+            glass = info_glass.find('a')
+            link = glass['href'].split('/', 3)
+            url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/steklo/' + link[3]
             result.append(url)
 
         return result
 
-    def get_glass_type(self, cars):
-        result = {}
 
-        for i in cars:
+    async def get_info(self, glasses: list) -> dict:
+        for i in glasses:
             response = requests.get(i, headers=cfg.headers)
             soup = BeautifulSoup(response.text, "html.parser")
-            info_glass = soup.find("section", class_="glass-type")
-            info_car = soup.find("div", class_="car-info")
-            res = info_glass.find('a')
-            link = res['href'].split('/', 3)
-            url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/glass-types/' + link[3]
-            result[info_car.text] = url
-        return result
-
-    def get_glass(self, glasses: dict):
-        for i in glasses.values():
-            response = requests.get(i, cfg.headers)
-            soup = BeautifulSoup(response.text, "html.parser")
-            print(soup.text)
-            info_glass = soup.find("section", class_="glass-type")
-            print(info_glass)
-            res = info_glass.find('a')
-            link = res['href'].split('/', 3)
-            print(link)
-            url = cfg.HOME_URL.rstrip('/') + '/' + cfg.CITY + '/glass-types/' + link[3]
-            print(url)
+            for brand in self.data.values():
+                for model in brand.values():
+                    gen = soup.find("strong")
+                    if 'не найден' in soup.text:
+                        model[gen.text] = "Товар не найден"
+                    else:
+                        sizes = []
+                        info_glass = soup.find_all("div", class_="dropdown-block")
+                        for i in info_glass:
+                            res = i.text.strip().split()
+                            for size in res:
+                                if size.isdigit():
+                                    sizes.append(size)
+                                model[gen.text] = str(sizes[:2])
+        return self.data
