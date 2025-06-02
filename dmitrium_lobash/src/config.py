@@ -4,6 +4,7 @@ from fake_useragent import UserAgent
 
 class Config(BaseModel):
     HOME_URL: str = "https://autosteklo.ru/"
+    url_test: str = 'https://autosteklo.ru/moscow/steklo/acura'
     CITY: str = "moscow"
 
     headers: dict = {
