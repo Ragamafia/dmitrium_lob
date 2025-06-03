@@ -2,13 +2,10 @@ import time
 import asyncio
 
 from parser import MainParser
-from utils import save_dict_to_json
-
-
-parser = MainParser()
 
 
 if __name__ == '__main__':
+    parser = MainParser()
     start_time = time.time()
 
     asyncio.run(parser.run())
