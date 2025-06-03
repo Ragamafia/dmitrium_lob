@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 current_dir = Path(__file__)
-root = current_dir.parent
+root = current_dir.parent.parent
 database = root / 'glasses.json'
 
 def save_data_to_json(data):
