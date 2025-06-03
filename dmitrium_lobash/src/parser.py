@@ -1,11 +1,6 @@
 import asyncio
 import random
 
-import ssl
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
-
 from aiohttp import ClientSession, ClientTimeout, ClientError
 from aiohttp_proxy import ProxyType, ProxyConnector
 from bs4 import BeautifulSoup
@@ -34,7 +29,6 @@ class MainParser:
                 password=cfg.proxy_pass,
                 host=cfg.proxy_host,
                 port=cfg.proxy_port,
-                ssl_context=ssl_context
             )
         }
         async with ClientSession(**kwargs) as self.session:

@@ -1,0 +1,6 @@
+aiohttp
+aiohttp-proxy
+bs4
+fake-useragent
+pydantic
+python-dotenv
